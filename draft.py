@@ -80,10 +80,11 @@ class Application(Frame):
         else:
             self.isSelected=False
 
-
+window_start_x=(1000/2)
+window_start_y=(500/2)
 root=Tk()
 root.title("GUI")
-root.geometry("1080x780")
+root.geometry("+%d+%d" % (window_start_x,window_start_y))
 root.resizable(False,False)
 app=Application(root)
 root.mainloop()
