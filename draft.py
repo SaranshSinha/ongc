@@ -11,18 +11,25 @@ class Application(Frame):
         self.col=3
         self.index=2
         self.isSelected=False
+        self.dic={}
         self.create_widgets()
 
 
     def create_widgets(self):
         self.status_txt=Text(self,width=40,height=8,state='disabled',wrap=WORD)
         self.status_txt.grid(row=0,column=0)
-        self.but_arr1=Button(self,text="nst1",command=lambda :self.printStatus("nst1")).grid(row=0,column=4)
-        self.but_arr2=Button(self,text="nst2",command=lambda :self.printStatus("nst2")).grid(row=0,column=5)
+        self.but_arr1=Button(self,text="nst1",command=lambda :self.printStatus("nst1"))
+        self.but_arr1.grid(row=0,column=4)
+        self.dic["nst1"]=self.but_arr1
+        self.but_arr2=Button(self,text="nst2",command=lambda :self.printStatus("nst2"))
+        self.but_arr2.grid(row=0,column=5)
+        self.dic["nst2"]=self.but_arr2
         Button(self,text="Add driver:",command=lambda : self.add_button(self.tf.get())).grid(row=3,column=5)
-        Button(self,text="Remove driver:",command=self.del_button).grid(row=4,column=5)
+        Button(self,text="Remove driver:",command=lambda :self.del_button(self.tfr.get())).grid(row=4,column=5)
         self.tf=Entry(self)
+        self.tfr=Entry(self)
         self.tf.grid(row=3,column=6)
+        self.tfr.grid(row=4,column=6)
         self.open_btn=Button(self,text="open file",command=self.choose_file).grid(row=5,column=0)
         Label(self,text="open file:").grid(row=5,column=5)
         self.inputfile=Entry(self)
@@ -49,6 +56,7 @@ class Application(Frame):
 
 
     def printStatus(self,st):
+
         s=os.popen("./saransh_cartridge.octet-stream "+st).readlines()
         self.status_txt.config(state='normal')
         for x in s:
@@ -71,14 +79,13 @@ class Application(Frame):
             self.inputfile.insert(0,self.fname)
 
     def add_button(self,name):
-        self.but_arr=Button(self,text=name,command=lambda :self.printStatus(name)).grid(row=1,column=self.col)
+        self.but_arr=Button(self,text=name,command=lambda :self.printStatus(name))
+        self.but_arr.grid(row=1,column=self.col)
+        self.dic[name]=self.but_arr
         self.col+=1
         self.index+=1
-    def del_button(self):
-        if self.isSelected==False:
-            self.isSelected=True
-        else:
-            self.isSelected=False
+    def del_button(self,name):
+        self.dic[name].grid_forget()
 
 window_start_x=(1000/2)
 window_start_y=(500/2)
