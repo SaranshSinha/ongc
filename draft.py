@@ -2,6 +2,7 @@ import os
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
+import tkinter.scrolledtext as tkst
 from os import *
 class Application(Frame):
     def __init__(self,root):
@@ -38,7 +39,7 @@ class Application(Frame):
         Label(self,text="Data type:").grid(row=9,column=0)
         Label(self,text="Device:").grid(row=10,column=0)
         Label(self,text="console output:").grid(row=13,column=0)
-        self.console=Text(self,width=50,height=8,state='disabled',wrap=WORD)
+        self.console=tkst.ScrolledText(self,width=50,height=8,state='disabled',wrap=WORD)
         self.console.grid(row=14,column=0)
         self.type_combo=ttk.Combobox(self,values=["a","b","c"])
         self.type_combo.grid(row=9,column=2)
@@ -82,7 +83,7 @@ class Application(Frame):
 
 root=Tk()
 root.title("GUI")
-root.geometry("960x480")
+root.geometry("1080x780")
 root.resizable(False,False)
 app=Application(root)
 root.mainloop()
