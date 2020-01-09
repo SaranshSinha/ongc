@@ -6,6 +6,60 @@ from tkinter import messagebox
 import tkinter.scrolledtext as tkst
 from os import *
 import sqlite3
+import subprocess
+from subprocess import *
+import threading
+import pty
+import time
+class thread(threading.Thread):
+    def __init__(self,root,id,name):
+        threading.Thread.__init__(self)
+        self.threadID=id
+        self.name=name
+        self.root=root
+        self.master,self.slave=pty.openpty()
+        self.exe=subprocess.Popen(['./x2'],shell=True,stdout=self.slave,stdin=PIPE)
+        self.stdin_handle=self.exe.stdin
+        self.stdout_handle=os.fdopen(self.master)
+
+    def run(self):
+        print("Starting thread: "+self.name)
+
+        while True:
+            print("reading next line from pipe..")
+            x=self.stdout_handle.readline()
+            if x==b'':
+                break
+            self.root.console.insert(END,x)
+            print(x)
+            if '?' in x:
+                #t.insert(END,x)
+                print("inside t!")
+                print(x)
+                self.send()
+
+            root.update_idletasks()
+            time.sleep(1)
+        print("out of loop!")
+
+
+    def send(self):
+
+        while not self.root.e.get():
+            pass
+        #print(b'{}'.format(str.encode(e.get())))
+        #exe.stdin.open()
+        self.stdin_handle.flush()
+        self.stdin_handle.write(b''+str.encode(self.root.e.get()))
+        self.root.e.delete(0,END)
+        self.stdin_handle.flush()
+        print("data sent to pipe")
+        #t.insert(END,stdout_handle.readline())
+        self.stdin_handle.close()
+        #print(exe.stdout.readline())
+        self.run()
+
+
 class Application(Frame):
     def __init__(self,root):
         super(Application,self).__init__(root)
@@ -123,7 +177,9 @@ class Application(Frame):
             self.status_txt.insert(0.0,x)
         self.status_txt.config(state='disabled')
     def showOutput(self,i,r,t,l,ty,dev):
-        
+        self.console.config(state='normal')
+        t1=thread(self,1,'t1')
+        t1.start()
         #print(i+r+t+l+ty+dev)
         '''try:
             if int(r)>=1000 and int(r)<=30000 and int(t)>=1 and int(t)<=10 :
