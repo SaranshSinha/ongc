@@ -12,13 +12,22 @@ import threading
 import pty
 import time
 class thread(threading.Thread):
-    def __init__(self,root,id,name):
+    def __init__(self,root,id,name,i,r,t,l,ty,dev):
         threading.Thread.__init__(self)
         self.threadID=id
         self.name=name
         self.root=root
+        self.i=i
+        self.r=r
+        self.t=t
+        self.l=l
+        self.ty=ty
+        self.dev=dev
         self.master,self.slave=pty.openpty()
-        self.exe=subprocess.Popen(['./x2'],shell=True,stdout=self.slave,stdin=PIPE)
+        #print("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev))
+        #print('./saransh_test_binary.octet-stream','%s'%(self.i),'%s'%(self.r),'%s'%(self.t),'%s'%(self.l),'%s'%(self.ty),'%s'%(self.dev))
+        self.exe=subprocess.Popen('./x2',shell=True,stdout=self.slave,stdin=PIPE)
+        #self.exe=subprocess.Popen("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev),shell=True,stdout=self.slave,stdin=PIPE)
         self.stdin_handle=self.exe.stdin
         self.stdout_handle=os.fdopen(self.master)
 
@@ -28,7 +37,9 @@ class thread(threading.Thread):
         while True:
             print("reading next line from pipe..")
             x=self.stdout_handle.readline()
-            if x==b'':
+
+            if x=='EOF!':
+                self.root.console.insert(END,x)
                 break
             self.root.console.insert(END,x)
             print(x)
@@ -40,7 +51,7 @@ class thread(threading.Thread):
 
             root.update_idletasks()
             time.sleep(1)
-        print("out of loop!")
+        self.root.stop_button.grid_forget()
 
 
     def send(self):
@@ -58,6 +69,16 @@ class thread(threading.Thread):
         self.stdin_handle.close()
         #print(exe.stdout.readline())
         self.run()
+
+    def end_thread(self,root):
+        print("inside end thread!")
+        self.root.console.config(state='normal')
+        self.root.console.insert(END,"Stopping Process...\n")
+        os.system('./kill_child.sh '+ str((os.getpid())))
+        self.root.console.insert(END,"process stopped!")
+        print("calling shell script for killing child!")
+        self.root.console.config(state='disabled')
+        self.root.stop_button.grid_forget()
 
 
 class Application(Frame):
@@ -174,16 +195,20 @@ class Application(Frame):
         self.status_txt.config(state='normal')
         self.status_txt.delete(0.0,END)
         for x in s:
-            self.status_txt.insert(0.0,x)
+            self.status_txt.insert(END,x)
         self.status_txt.config(state='disabled')
     def showOutput(self,i,r,t,l,ty,dev):
-        self.console.config(state='normal')
-        t1=thread(self,1,'t1')
-        t1.start()
+        '''
         #print(i+r+t+l+ty+dev)
-        '''try:
+        '''
+        try:
             if int(r)>=1000 and int(r)<=30000 and int(t)>=1 and int(t)<=10 :
-                s2=os.popen("./saransh_test_binary.octet-stream "+" "+i+" "+r+" "+t+" "+l+" "+dev+" "+ty).readlines()
+                self.console.config(state='normal')
+                self.t1=thread(self,1,'t1',i,r,t,l,ty,dev)
+                self.stop_button=Button(self,text='Stop!',command=lambda : self.t1.end_thread(self),bg='yellow',fg='black',font=('Courier',11,'bold'))
+                self.stop_button.grid(row=13,column=6)
+                self.t1.start()
+                '''s2=os.popen("./saransh_test_binary.octet-stream "+" "+i+" "+r+" "+t+" "+l+" "+dev+" "+ty).readlines()
                 # print(system('ps -C "saransh_test_binary.octet-stream" -o pid='))
                 #self.device_li.clear()
                 self.device_combo.delete(0,END)
@@ -195,7 +220,7 @@ class Application(Frame):
                 for x in s2:
                     self.console.insert(0.0,x)
                 self.console.config(state='disabled')
-
+                '''
                 #if i==null or l==null:
                     #messagebox.showerror("Error","please fill all the data entries!")
             elif int(r) not in range(1000,30000):
@@ -203,14 +228,14 @@ class Application(Frame):
             else:
                 messagebox.showerror("Error","Sample interval has to be within 1 and 10 ms")
         except:
-            messagebox.showerror("Error","please fill all the data entries!")'''
+            messagebox.showerror("Error","please fill all the data entries!")
 
 
 
         #print(system('ps -C "python3 hello.py" -o pid='))
         # print(system('ps -q 256 -o comm='))
     def choose_file(self):
-        self.fname =filedialog. askopenfilename(filetypes=(("Template files", "*.tplate"),("HTML files", "*.html;*.htm"),("All files", "*.*") ))
+        self.fname =filedialog. askopenfilename(filetypes=(("All files", "*.*"),("HTML files", "*.html;*.htm"),("Template files", "*.tplate") ))
         if self.fname:
             self.inputfile.insert(0,self.fname)
 
@@ -270,6 +295,7 @@ class Application(Frame):
 window_start_x=(1000/2)
 window_start_y=(500/2)
 root=Tk()
+print(os.getpid())
 root.title("GUI")
 root.geometry("+%d+%d" % (window_start_x,window_start_y))
 root.resizable(False,False)
