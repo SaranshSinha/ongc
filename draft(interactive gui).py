@@ -11,6 +11,7 @@ from subprocess import *
 import threading
 import pty
 import time
+
 class thread(threading.Thread):
     def __init__(self,root,id,name,i,r,t,l,ty,dev):
         threading.Thread.__init__(self)
@@ -26,7 +27,7 @@ class thread(threading.Thread):
         self.master,self.slave=pty.openpty()
         #print("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev))
         #print('./saransh_test_binary.octet-stream','%s'%(self.i),'%s'%(self.r),'%s'%(self.t),'%s'%(self.l),'%s'%(self.ty),'%s'%(self.dev))
-        self.exe=subprocess.Popen('./x2',shell=True,stdout=self.slave,stdin=PIPE)
+        self.exe=subprocess.Popen('./xx4',shell=True,stdout=self.slave,stdin=PIPE,stderr=STDOUT,bufsize=0)
         #self.exe=subprocess.Popen("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev),shell=True,stdout=self.slave,stdin=PIPE)
         self.stdin_handle=self.exe.stdin
         self.stdout_handle=os.fdopen(self.master)
@@ -36,13 +37,9 @@ class thread(threading.Thread):
 
         while True:
             print("reading next line from pipe..")
+            #print(self.stdin_handle)
             x=self.stdout_handle.readline()
-
-            if x=='EOF!':
-                self.root.console.insert(END,x)
-                break
             self.root.console.insert(END,x)
-            print(x)
             if '?' in x:
                 #t.insert(END,x)
                 print("inside t!")
@@ -51,6 +48,7 @@ class thread(threading.Thread):
 
             root.update_idletasks()
             time.sleep(1)
+        self.root.config(state='normal')
         self.root.stop_button.grid_forget()
 
 
@@ -60,15 +58,21 @@ class thread(threading.Thread):
             pass
         #print(b'{}'.format(str.encode(e.get())))
         #exe.stdin.open()
-        self.stdin_handle.flush()
+        try:
+            self.stdin_handle.flush()
+        except:
+            pass
         self.stdin_handle.write(b''+str.encode(self.root.e.get()))
         self.root.e.delete(0,END)
-        self.stdin_handle.flush()
+        try:
+            self.stdin_handle.flush()
+        except:
+            pass
         print("data sent to pipe")
         #t.insert(END,stdout_handle.readline())
-        self.stdin_handle.close()
+        #self.stdin_handle.close()
         #print(exe.stdout.readline())
-        self.run()
+        #self.run()
 
     def end_thread(self,root):
         print("inside end thread!")
@@ -78,6 +82,7 @@ class thread(threading.Thread):
         self.root.console.insert(END,"process stopped!")
         print("calling shell script for killing child!")
         self.root.console.config(state='disabled')
+        self.root.sb.config(state='normal')
         self.root.stop_button.grid_forget()
 
 
@@ -183,7 +188,8 @@ class Application(Frame):
         self.device_combo=ttk.Combobox(self,state='normal')
         self.showDevices(self.type)
         self.device_combo.grid(row=10,column=2)
-        Button(self,text="seg2 tape",command=lambda : self.showOutput(self.inputfile.get(),self.record.get(),self.sample.get(),self.log.get(),self.type_combo.get(),self.device_combo.get()),bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=13,column=3)
+        self.sb=Button(self,text="seg2 tape",command=lambda : self.showOutput(self.inputfile.get(),self.record.get(),self.sample.get(),self.log.get(),self.type_combo.get(),self.device_combo.get()),bg='yellow',fg='black',font=('Courier',11,'bold'))
+        self.sb.grid(row=13,column=3)
         Button(self,text='Clear',command=self.clear2,bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=13, column=2)
         Label(self,text="send command: ",font=('bold')).grid(row=13,column=4)
         self.e=Entry(self,highlightthickness=3,highlightbackground='black')
@@ -204,9 +210,11 @@ class Application(Frame):
         try:
             if int(r)>=1000 and int(r)<=30000 and int(t)>=1 and int(t)<=10 :
                 self.console.config(state='normal')
+
                 self.t1=thread(self,1,'t1',i,r,t,l,ty,dev)
                 self.stop_button=Button(self,text='Stop!',command=lambda : self.t1.end_thread(self),bg='yellow',fg='black',font=('Courier',11,'bold'))
                 self.stop_button.grid(row=13,column=6)
+                self.sb.config(state='disabled')
                 self.t1.start()
                 '''s2=os.popen("./saransh_test_binary.octet-stream "+" "+i+" "+r+" "+t+" "+l+" "+dev+" "+ty).readlines()
                 # print(system('ps -C "saransh_test_binary.octet-stream" -o pid='))
@@ -300,5 +308,4 @@ root.title("GUI")
 root.geometry("+%d+%d" % (window_start_x,window_start_y))
 root.resizable(False,False)
 app=Application(root)
-root.configure(bg='blue')
 root.mainloop()
