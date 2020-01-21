@@ -5,12 +5,13 @@ from tkinter import filedialog
 from tkinter import messagebox
 import tkinter.scrolledtext as tkst
 from os import *
-import sqlite3
+import pymysql
 import subprocess
 from subprocess import *
 import threading
 import pty
 import time
+import signal
 
 class thread(threading.Thread):
     def __init__(self,root,id,name,i,r,t,l,ty,dev):
@@ -27,43 +28,56 @@ class thread(threading.Thread):
         self.master,self.slave=pty.openpty()
         #print("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev))
         #print('./saransh_test_binary.octet-stream','%s'%(self.i),'%s'%(self.r),'%s'%(self.t),'%s'%(self.l),'%s'%(self.ty),'%s'%(self.dev))
-        self.exe=subprocess.Popen('./xx4',shell=True,stdout=self.slave,stdin=PIPE,stderr=STDOUT,bufsize=0)
-        #self.exe=subprocess.Popen("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev),shell=True,stdout=self.slave,stdin=PIPE)
+        self.exe=subprocess.Popen('exec ./x1',shell=True,stdout=self.slave,stdin=PIPE,stderr=STDOUT,bufsize=0)
+        #self.exe=subprocess.Popen("./saransh_test_binary.octet-stream %s %s %s %s %s %s"%(self.i,self.r,self.t,self.l,self.ty,self.dev),shell=True,stdout=self.slave,stdin=PIPE,stderr=STDOUT,bufsize=0)
         self.stdin_handle=self.exe.stdin
         self.stdout_handle=os.fdopen(self.master)
+        self.count=0
 
     def run(self):
         print("Starting thread: "+self.name)
 
         while True:
+            if self.count==3:
+                break
+            #print("count=", self.count) #detect the end of the binary file..
             print("reading next line from pipe..")
+
+
             #print(self.stdin_handle)
             x=self.stdout_handle.readline()
             self.root.console.insert(END,x)
-            if '?' in x:
+            if '[y/n]' in x:
+            #if 'Whether' in x and '(Y|N)' in x: libmysql 5.1.73
                 #t.insert(END,x)
                 print("inside t!")
                 print(x)
                 self.send()
+            #self.count+=1
+            print(self.exe.poll())
+            if self.exe.poll()==0:#to check if the subprocess has been complete or not.
+                self.count+=1
 
             root.update_idletasks()
             time.sleep(1)
-        self.root.config(state='normal')
+        self.root.sb.config(state='normal')
         self.root.stop_button.grid_forget()
 
 
     def send(self):
-
+        self.root.e.config(state='normal')
         while not self.root.e.get():
             pass
         #print(b'{}'.format(str.encode(e.get())))
         #exe.stdin.open()
+
         try:
             self.stdin_handle.flush()
         except:
             pass
         self.stdin_handle.write(b''+str.encode(self.root.e.get()))
         self.root.e.delete(0,END)
+        self.root.e.config(state='disabled')
         try:
             self.stdin_handle.flush()
         except:
@@ -78,11 +92,13 @@ class thread(threading.Thread):
         print("inside end thread!")
         self.root.console.config(state='normal')
         self.root.console.insert(END,"Stopping Process...\n")
-        os.system('./kill_child.sh '+ str((os.getpid())))
+        self.exe.terminate()
+        self.exe.wait()
         self.root.console.insert(END,"process stopped!")
-        print("calling shell script for killing child!")
+        #print("calling shell script for killing child!")
         self.root.console.config(state='disabled')
         self.root.sb.config(state='normal')
+        self.root.e.config(state='disabled')
         self.root.stop_button.grid_forget()
 
 
@@ -98,9 +114,11 @@ class Application(Frame):
         self.dic={}
         self.type_li=[]
         self.device_li=[]
-        self.conn=sqlite3.connect("server_driver.db")
+        self.conn=pymysql.connect(host='localhost',user='root1',password='saransh123',db='test_db')
         self.cursor=self.conn.cursor()
         self.host=os.popen("hostname").readlines()
+        root.protocol('WM_DELETE_WINDOW',self.close_app)
+
         #print(self.host)
         for i in self.host:
             i=i[:len(i)-1]
@@ -121,7 +139,7 @@ class Application(Frame):
         Label(self.top_frame,text="Seg2 Tape",fg='yellow',bg='red',font=('Courier',44)).pack(expand=True,fill=BOTH,side='top')
         self.status_txt=Text(self,width=40,height=8,state='disabled',highlightbackground='black',highlightthickness=3,wrap=WORD)
         self.status_txt.grid(row=4,column=0)
-        self.cursor.execute("select dname from serv_driv where sname='%s'"%(self.type))
+        self.cursor.execute("select device from serv_driv where host='%s'"%(self.type))
         #print("select dname from serv_driv where sname='%s'"%(self.type))
         self.but_arr1=[]
         #print(self.cursor)
@@ -144,6 +162,7 @@ class Application(Frame):
         self.dc=ttk.Combobox(self,values=self.device_li,state='normal')
         self.dc.grid(row=4,column=3)
         Button(self,text="Clear",command=self.clear_status,bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=4,column=1)
+        Button(self,text="Rewind",command=lambda : self.rewind(self.dc.get()),bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=4,column=5)
         Button(self,text='Run Driver',command=lambda : self.printStatus(),bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=4,column=4)
         self.col+=1
         self.wp=PanedWindow(self)
@@ -192,7 +211,7 @@ class Application(Frame):
         self.sb.grid(row=13,column=3)
         Button(self,text='Clear',command=self.clear2,bg='yellow',fg='black',font=('Courier',11,'bold')).grid(row=13, column=2)
         Label(self,text="send command: ",font=('bold')).grid(row=13,column=4)
-        self.e=Entry(self,highlightthickness=3,highlightbackground='black')
+        self.e=Entry(self,state='disabled',highlightthickness=3,highlightbackground='black')
         self.e.grid(row=13,column=5)
 
     def printStatus(self):
@@ -249,22 +268,22 @@ class Application(Frame):
 
     def add_button(self,name):
 
-        try:
+        #try:
 
-            self.cursor.execute("insert into serv_driv values(?,?)",(self.type,name))
-            self.conn.commit()
-            self.tf.delete(0,END)
-            self.device_li.append(name)
-            messagebox.showinfo("Message","Driver added successfully!")
-            self.showDevices(self.type)
+        self.cursor.execute("insert into serv_driv values(%s,%s)",[self.type,name])
+        self.conn.commit()
+        self.tf.delete(0,END)
+        self.device_li.append(name)
+        messagebox.showinfo("Message","Driver added successfully!")
+        self.showDevices(self.type)
             #self.tfr.config(state='disabled')
-        except:
-            messagebox.showinfo("Oops!","Driver already exists!")
+        #except:
+            #messagebox.showinfo("Oops!","Driver already exists!")
 
         #self.index+=1
     def del_button(self,name):
         if messagebox.askokcancel("Delete message","Are you sure to delete it?"):
-            self.cursor.execute("delete from serv_driv where sname='%s' and dname='%s'"%(self.type,name))
+            self.cursor.execute("delete from serv_driv where host=%s and device=%s",[self.type,name])
             print("data removed from table!")
             self.conn.commit()
 
@@ -296,6 +315,14 @@ class Application(Frame):
         self.console.config(state='normal')
         self.console.delete(0.0,END)
         self.console.config(state='disabled')
+    def rewind(self,d):
+        print("rewinding...."+d)
+        #os.system('mt dev/nst2 rewind')
+    def close_app(self):
+        if messagebox.askokcancel("Close","Are you sure?"):
+
+            root.destroy()
+
 
 
 
